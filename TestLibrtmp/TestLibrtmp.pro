@@ -8,7 +8,14 @@ QT       += core gui
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
-include($$PWD/lib/librtmp/librtmp.pri)
+UI_DIR  = obj/Gui
+MOC_DIR = obj/Moc
+OBJECTS_DIR = obj/Obj
+
+
+#将输出文件直接放到源码目录下的bin目录下，将dll都放在了次目录中，用以解决运行后找不到dll的问
+DESTDIR=$$PWD/bin/
+QMAKE_CXXFLAGS += -std=c++11
 
 TARGET = TestLibrtmp
 TEMPLATE = app
@@ -24,6 +31,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 # You can also select to disable deprecated APIs only up to a certain version of Qt.
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
+include($$PWD/lib/librtmp/librtmp.pri)
 
 SOURCES += \
         main.cpp \

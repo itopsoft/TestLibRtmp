@@ -97,9 +97,8 @@ int publish_using_packet()
     RTMPPacket *packet=NULL;
     uint32_t start_time=0;
     uint32_t now_time=0;
-    //the timestamp of the previous frame
-    long pre_frame_time=0;
-    long lasttime=0;
+    uint64_t start_time_Pts = 0;
+
     int bNextIsKey=1;
     uint32_t preTagsize=0;
 
@@ -110,7 +109,7 @@ int publish_using_packet()
     uint32_t streamid=0;
 
     FILE*fp=NULL;
-    fp=fopen("cuc_ieschool.flv","rb");
+    fp=fopen("F:/out.flv","rb");
     if (!fp){
         RTMP_LogPrintf("Open File Error.\n");
         CleanupSockets();
@@ -130,7 +129,8 @@ int publish_using_packet()
     RTMP_Init(rtmp);
     //set connection timeout,default 30s
     rtmp->Link.timeout=5;
-    if(!RTMP_SetupURL(rtmp, (char*)"rtmp://localhost/publishlive/livestream"))
+
+    if(!RTMP_SetupURL(rtmp, (char*)"rtmp://192.168.87.207:1935/live/stream1"))
     {
         RTMP_Log(RTMP_LOGERROR,"SetupURL Err\n");
         RTMP_Free(rtmp);
@@ -157,7 +157,7 @@ int publish_using_packet()
     }
 
     packet=(RTMPPacket*)malloc(sizeof(RTMPPacket));
-    RTMPPacket_Alloc(packet,1024*64);
+    RTMPPacket_Alloc(packet,1024*1024*2);
     RTMPPacket_Reset(packet);
 
     packet->m_hasAbsTimestamp = 0;
@@ -170,21 +170,10 @@ int publish_using_packet()
     fseek(fp,9,SEEK_SET);
     //jump over previousTagSizen
     fseek(fp,4,SEEK_CUR);
-    start_time=RTMP_GetTime();
+
+    int num = 0;
     while(1)
     {
-        if((((now_time=RTMP_GetTime())-start_time)
-              <(pre_frame_time)) && bNextIsKey){
-            //wait for 1 sec if the send process is too fast
-            //this mechanism is not very good,need some improvement
-            if(pre_frame_time>lasttime){
-                RTMP_LogPrintf("TimeStamp:%8lu ms\n",pre_frame_time);
-                lasttime=pre_frame_time;
-            }
-            Sleep(1000);
-            continue;
-        }
-
         //not quite the same as FLV spec
         if(!ReadU8(&type,fp))
             break;
@@ -195,21 +184,44 @@ int publish_using_packet()
         if(!ReadU24(&streamid,fp))
             break;
 
-        if (type!=0x08&&type!=0x09){
+        if (type!=0x08&&type!=0x09)
+        {
             //jump over non_audio and non_video frame£¬
             //jump over next previousTagSizen at the same time
             fseek(fp,datalength+4,SEEK_CUR);
             continue;
         }
 
-        if(fread(packet->m_body,1,datalength,fp)!=datalength)
+        int readLenth = fread(packet->m_body,1,datalength,fp);
+        if(readLenth!=datalength)
             break;
+
+        if (start_time == 0)
+        {
+            start_time = RTMP_GetTime();
+            start_time_Pts = timestamp;
+        }
+
+        timestamp = timestamp - start_time_Pts;
 
         packet->m_headerType = RTMP_PACKET_SIZE_LARGE;
         packet->m_nTimeStamp = timestamp;
         packet->m_packetType = type;
         packet->m_nBodySize  = datalength;
-        pre_frame_time=timestamp;
+
+        RTMP_LogPrintf("%06d TimeStamp:%8lums len=%6d %6d\n", ++num, timestamp, datalength, readLenth);
+
+        while(1)
+        {
+            now_time = RTMP_GetTime() - start_time;
+
+            if (now_time >= timestamp)
+            {
+                break;
+            }
+
+            Sleep(10);
+        }
 
         if (!RTMP_IsConnected(rtmp)){
             RTMP_Log(RTMP_LOGERROR,"rtmp is not connect\n");
@@ -225,7 +237,9 @@ int publish_using_packet()
 
         if(!PeekU8(&type,fp))
             break;
-        if(type==0x09){
+
+        if(type==0x09)
+        {
             if(fseek(fp,11,SEEK_CUR)!=0)
                 break;
             if(!PeekU8(&type,fp)){

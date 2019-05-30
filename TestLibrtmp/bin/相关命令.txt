@@ -1,0 +1,2 @@
+ffmpeg推流命令：
+ffmpeg.exe -re -i  F:\test.mp4 -c copy -f flv rtmp://192.168.87.207:1935/live/stream1
