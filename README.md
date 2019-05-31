@@ -1,5 +1,8 @@
 # TestLibRtmp
 
+视频文件下载地址：
+链接：https://pan.baidu.com/s/1XlRBxTqQYDmZiAFVJcFr7w 提取码：u25t 
+
 RTMP资料：
 
 rtmp握手流程讲解：https://www.jianshu.com/p/dc4884bd7908  
